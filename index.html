@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="mufrodat_app">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>mufrodat_app</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Text-to-Speech menggunakan Web Speech API (Browser Native) -->
+  <script>
+    console.log('✅ Initializing Web Speech API (Native TTS)...');
+
+    // Main speak function - menggunakan browser native Speech Synthesis dengan fallback
+    window.speak = function(text, language, rate) {
+      try {
+        // Stop any ongoing speech
+        window.stopSpeaking();
+
+        // Check if speech synthesis is available
+        if (!('speechSynthesis' in window)) {
+          console.error('❌ Speech Synthesis not available');
+          return false;
+        }
+
+        // Determine language code
+        let langCode = 'ar-SA'; // default Arabic
+        if (language.startsWith('en')) langCode = 'en-US';
+        else if (language.startsWith('id')) langCode = 'id-ID';
+        else if (language.startsWith('ar')) langCode = 'ar-SA';
+
+        console.log(`📢 Speaking: "${text}" | Lang: ${langCode} | Rate: ${rate || 0.8}`);
+
+        // Try to find a suitable voice
+        const voices = speechSynthesis.getVoices();
+        let preferredVoice = voices.find(voice => voice.lang === langCode);
+        
+        // Fallback: try to find any voice that starts with the same language code
+        if (!preferredVoice) {
+          preferredVoice = voices.find(voice => voice.lang.startsWith(langCode.split('-')[0]));
+        }
+        
+        if (preferredVoice) {
+          // Use native speech synthesis
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = langCode;
+          utterance.voice = preferredVoice;
+          utterance.rate = rate || 0.8;
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+
+          console.log(`🎤 Using voice: ${preferredVoice.name} (${preferredVoice.lang})`);
+
+          // Event handlers
+          utterance.onstart = () => {
+            console.log('▶️ Speech started');
+            if (window.parent) {
+              window.parent.postMessage({type: 'tts-start'}, '*');
+            }
+          };
+          
+          utterance.onend = () => {
+            console.log('✅ Speech finished');
+            if (window.parent) {
+              window.parent.postMessage({type: 'tts-end'}, '*');
+            }
+          };
+          
+          utterance.onerror = (event) => {
+            // Ignore empty errors (common in speech synthesis when interrupted)
+            if (event.error && event.error !== '') {
+              console.error('❌ Speech error:', event.error, event);
+            } else {
+              console.log('⚠️ Speech interrupted or cancelled (normal behavior)');
+            }
+          };
+
+          speechSynthesis.speak(utterance);
+          return true;
+        } else {
+          // No voice found for this language - try alternative approach
+          console.warn(`⚠️ No voice found for ${langCode}, trying alternative method...`);
+          
+          // For Arabic, we can try using responsivevoice.org CDN or just notify user
+          if (langCode.startsWith('ar')) {
+            console.error('❌ Arabic voice not available. Please install Arabic voice:');
+            console.error('  1. Windows Settings → Time & Language → Language');
+            console.error('  2. Add "Arabic (Saudi Arabia)" or similar');
+            console.error('  3. Restart browser');
+            
+            // Show visual feedback to user
+            if (window.parent) {
+              window.parent.postMessage({
+                type: 'tts-error', 
+                message: 'Arabic voice not installed on this device'
+              }, '*');
+            }
+            return false;
+          }
+          
+          return false;
+        }
+      } catch (error) {
+        console.error('❌ TTS error:', error);
+        return false;
+      }
+    };
+
+    // Stop speaking
+    window.stopSpeaking = function() {
+      try {
+        if ('speechSynthesis' in window) {
+          speechSynthesis.cancel();
+          console.log('⏹️ Speech stopped');
+        }
+      } catch (error) {
+        console.error('❌ Stop error:', error);
+      }
+    };
+
+    // Dedicated Arabic speak function
+    window.speakArabic = function(text, rate) {
+      try {
+        console.log(`🇸🇦 Speaking Arabic: "${text}" | Rate: ${rate || 0.8}`);
+        return window.speak(text, 'ar-SA', rate || 0.8);
+      } catch (error) {
+        console.error('❌ speakArabic error:', error);
+        return false;
+      }
+    };
+
+    // Dedicated English speak function
+    window.speakEnglish = function(text, rate) {
+      try {
+        console.log(`🇺🇸 Speaking English: "${text}" | Rate: ${rate || 0.9}`);
+        return window.speak(text, 'en-US', rate || 0.9);
+      } catch (error) {
+        console.error('❌ speakEnglish error:', error);
+        return false;
+      }
+    };
+
+    // Dedicated Indonesian speak function
+    window.speakIndonesian = function(text, rate) {
+      try {
+        console.log(`🇮🇩 Speaking Indonesian: "${text}" | Rate: ${rate || 0.8}`);
+        return window.speak(text, 'id-ID', rate || 0.8);
+      } catch (error) {
+        console.error('❌ speakIndonesian error:', error);
+        return false;
+      }
+    };
+
+    // Generic speak with language code
+    window.speakWithLanguage = function(text, language, rate) {
+      try {
+        console.log(`🌍 Speaking with language: "${text}" | Lang: ${language} | Rate: ${rate || 0.8}`);
+        return window.speak(text, language, rate || 0.8);
+      } catch (error) {
+        console.error('❌ speakWithLanguage error:', error);
+        return false;
+      }
+    };
+
+    // Load voices (some browsers load voices asynchronously)
+    let voicesLoaded = false;
+    
+    if ('speechSynthesis' in window) {
+      // Function to load and cache voices
+      window._loadVoices = function() {
+        const voices = speechSynthesis.getVoices();
+        if (voices.length > 0 && !voicesLoaded) {
+          voicesLoaded = true;
+          console.log(`🎤 Available voices: ${voices.length}`);
+          
+          // Group voices by language
+          const arVoices = voices.filter(v => v.lang.startsWith('ar'));
+          const enVoices = voices.filter(v => v.lang.startsWith('en'));
+          const idVoices = voices.filter(v => v.lang.startsWith('id'));
+          
+          console.log(`  🇸🇦 Arabic voices: ${arVoices.length}`);
+          arVoices.forEach((v, i) => console.log(`    ${i+1}. ${v.name} (${v.lang})`));
+          
+          console.log(`  🇺🇸 English voices: ${enVoices.length}`);
+          enVoices.forEach((v, i) => console.log(`    ${i+1}. ${v.name} (${v.lang})`));
+          
+          console.log(`  🇮🇩 Indonesian voices: ${idVoices.length}`);
+          idVoices.forEach((v, i) => console.log(`    ${i+1}. ${v.name} (${v.lang})`));
+          
+          if (arVoices.length === 0) {
+            console.warn('⚠️ No Arabic voice detected! To add Arabic voice:');
+            console.warn('  1. Windows Settings → Time & Language → Speech');
+            console.warn('  2. Or install Arabic language pack from Microsoft Store');
+            console.warn('  3. Or use Edge/Chrome which usually has Arabic support');
+          }
+        }
+        return voices;
+      };
+      
+      speechSynthesis.onvoiceschanged = window._loadVoices;
+      
+      // Try to load voices immediately
+      setTimeout(window._loadVoices, 100);
+    }
+
+    // Test function
+    window.testArabicVoice = function() {
+      window.speak('مرحبا بالعالم', 'ar-SA', 0.8);
+    };
+
+    console.log('✅ Web Speech API (Native TTS) ready');
+  </script>
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
